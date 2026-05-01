@@ -322,7 +322,9 @@ void PlasmaPhase::getPartialMolarEntropies(double* sbar) const
 {
     IdealGasPhase::getPartialMolarEntropies(sbar);
     double logp = log(pressure());
-    double logpe = log(electronPressure());
+    // Clamp electronPressure to SmallNumber so that a near-zero electron
+    // mole fraction does not give log(0) = -inf.
+    double logpe = log(std::max(SmallNumber, electronPressure()));
     sbar[m_electronSpeciesIndex] += GasConstant * (logp - logpe);
 }
 
@@ -349,7 +351,7 @@ void PlasmaPhase::getStandardChemPotentials(double* muStar) const
     IdealGasPhase::getStandardChemPotentials(muStar);
     size_t k = m_electronSpeciesIndex;
     muStar[k] -= log(pressure() / refPressure()) * RT();
-    muStar[k] += log(electronPressure() / refPressure()) * RTe();
+    muStar[k] += log(std::max(SmallNumber, electronPressure()) / refPressure()) * RTe();
 }
 
 void PlasmaPhase::getEntropy_R(double* sr) const
@@ -357,11 +359,12 @@ void PlasmaPhase::getEntropy_R(double* sr) const
     const vector<double>& _s = entropy_R_ref();
     copy(_s.begin(), _s.end(), sr);
     double tmp = log(pressure() / refPressure());
+    double tmp_e = log(std::max(SmallNumber, electronPressure()) / refPressure());
     for (size_t k = 0; k < m_kk; k++) {
         if (k != m_electronSpeciesIndex) {
             sr[k] -= tmp;
         } else {
-            sr[k] -= log(electronPressure() / refPressure());
+            sr[k] -= tmp_e;
         }
     }
 }
@@ -371,11 +374,12 @@ void PlasmaPhase::getGibbs_RT(double* grt) const
     const vector<double>& gibbsrt = gibbs_RT_ref();
     copy(gibbsrt.begin(), gibbsrt.end(), grt);
     double tmp = log(pressure() / refPressure());
+    double tmp_e = log(std::max(SmallNumber, electronPressure()) / refPressure());
     for (size_t k = 0; k < m_kk; k++) {
         if (k != m_electronSpeciesIndex) {
             grt[k] += tmp;
         } else {
-            grt[k] += log(electronPressure() / refPressure());
+            grt[k] += tmp_e;
         }
     }
 }
